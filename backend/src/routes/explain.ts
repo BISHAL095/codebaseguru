@@ -76,7 +76,8 @@ router.post("/", async (req: Request, res: Response) => {
         allEmbeddings.slice(i, i + BATCH_SIZE)
       );
     }
-
+    console.log(`✅ Successfully inserted chunks into Supabase`);
+    
     // 6. Update repo status to ready
     await supabase
       .from("repositories")

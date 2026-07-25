@@ -1,23 +1,27 @@
+import { response } from "express";
+
 export async function getEmbedding(text: string): Promise<number[]> {
-  const response = await fetch(
-    "https://api-inference.huggingface.co/pipeline/feature-extraction/sentence-transformers/all-MiniLM-L6-v2",
-    {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${process.env.HUGGINGFACE_API_KEY}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({ inputs: text.slice(0, 512) }),
-    }
-  );
+  const response = await fetch("http://localhost:11434/api/embeddings", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      model: "nomic-embed-text",
+      prompt: text.slice(0, 512),
+    }),
+  });
+
+  
 
   if (!response.ok) {
-    throw new Error(`Hugging Face API error: ${response.statusText}`);
+    throw new Error(`Ollama error: ${response.statusText}`);
   }
 
-  const data = await response.json() as number[] | number[][];
-  return Array.isArray(data[0]) ? data[0] as number[] : data as number[];
+  const data = await response.json() as { embedding: number[] };
+  console.log("Embedding length:", data.embedding?.length);
+  console.log("First value:", data.embedding?.[0]);
+  return data.embedding;
 }
+
 
 export function chunkFile(filePath: string, content: string) {
   const lines = content.split("\n");

@@ -1,6 +1,5 @@
 import { createClient } from "@supabase/supabase-js";
 import dotenv from "dotenv";
-
 dotenv.config();
 
 function getSupabase() {
@@ -16,15 +15,22 @@ export async function saveChunks(
   embeddings: number[][]
 ) {
   const supabase = getSupabase();
-  const rows = chunks.map((chunk, i) => ({
-    repo_id: repoId,
-    file_path: chunk.file_path,
-    content: chunk.content,
-    chunk_index: chunk.chunk_index,
-    embedding: `[${embeddings[i].join(",")}]`,
-  }));
 
-  const { error } = await supabase.from("file_chunks").insert(rows);
+  // filter out empty embeddings first
+  const valid = chunks
+    .map((chunk, i) => ({ chunk, embedding: embeddings[i] }))
+    .filter(({ embedding }) => embedding && embedding.length === 768);
+
+  console.log(`Inserting ${valid.length} valid chunks...`);
+
+  const { error } = await supabase.rpc("insert_chunks_batch", {
+    p_repo_id: repoId,
+    p_file_paths: valid.map((v) => v.chunk.file_path),
+    p_contents: valid.map((v) => v.chunk.content),
+    p_chunk_indexes: valid.map((v) => v.chunk.chunk_index),
+    p_embeddings: valid.map((v) => `[${v.embedding.join(",")}]`),
+  });
+
   if (error) throw new Error(`Failed to save chunks: ${error.message}`);
 }
 
