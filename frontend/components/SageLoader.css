@@ -1,0 +1,44 @@
+.float-group { animation: levitate 3.5s ease-in-out infinite; }
+@keyframes levitate { 0%,100%{transform:translateY(0px)} 50%{transform:translateY(-12px)} }
+
+.ground-shadow { animation: shadowPulse 3.5s ease-in-out infinite; transform-origin: center; }
+@keyframes shadowPulse { 0%,100%{transform:scale(1);opacity:0.8} 50%{transform:scale(0.65);opacity:0.3} }
+
+.breathe-torso { animation: breathe 3.5s ease-in-out infinite; transform-origin: 100px 140px; }
+@keyframes breathe { 0%,100%{transform:scale(1)} 50%{transform:scale(1.03,0.97)} }
+
+.aura-1 { animation: auraPulse 3.5s ease-in-out infinite; transform-origin: 100px 100px; }
+.aura-2 { animation: auraRotate 12s linear infinite; transform-origin: 100px 100px; }
+@keyframes auraPulse { 0%,100%{transform:scale(0.95);opacity:0.3} 50%{transform:scale(1.1);opacity:0.7} }
+@keyframes auraRotate { from{transform:rotate(0deg)} to{transform:rotate(360deg)} }
+
+.head-glow { animation: headGlow 2.5s ease-in-out infinite alternate; }
+@keyframes headGlow { 0%{opacity:0.2;transform:scale(0.9)} 100%{opacity:0.6;transform:scale(1.15)} }
+
+.sparkle { animation: floatSparkle 2.5s ease-in-out infinite; }
+.s1{animation-delay:0s} .s2{animation-delay:0.8s} .s3{animation-delay:1.6s}
+@keyframes floatSparkle { 0%,100%{opacity:0;transform:translateY(0) scale(0.5)} 50%{opacity:1;transform:translateY(-8px) scale(1.2)} }
+
+.loading-label { margin-top: 16px; color: #94a3b8; font-size: 15px; font-weight: 500; letter-spacing: 0.02em; }
+.dot-1{animation:blink 1.4s infinite 0s}
+.dot-2{animation:blink 1.4s infinite 0.2s}
+.dot-3{animation:blink 1.4s infinite 0.4s}
+@keyframes blink { 0%,80%,100%{opacity:0} 40%{opacity:1} }
+
+.sage-overlay {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  z-index: 20;
+}
+
+.sage-backdrop {
+  position: fixed;
+  inset: 0;
+  backdrop-filter: blur(8px);
+  background: rgba(15, 23, 42, 0.75);
+  z-index: 10;
+}

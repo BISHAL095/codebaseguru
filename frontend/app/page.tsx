@@ -2,30 +2,36 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import SageLoader from "../components/SageLoader";
+import { useRepoStatus } from "./hooks/useRepoStatus";
 
 export default function Home() {
   const [url, setUrl] = useState("");
   const [loading, setLoading] = useState(false);
+  const [repoId, setRepoId] = useState<string | null>(null);
   const [error, setError] = useState("");
   const router = useRouter();
+
+  useRepoStatus(
+    repoId,
+    (id) => router.push(`/dashboard/${id}`),
+    () => { setLoading(false); setRepoId(null); setError("Failed to process repo."); }
+  );
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!url.trim()) return;
-
     setLoading(true);
     setError("");
-
     try {
-      const res = await fetch("/api/explain", {
+      const res = await fetch("http://localhost:8000/api/explain", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ github_url: url.trim() }),
       });
-
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Something went wrong");
-      router.push(`/dashboard/${data.repo_id}`);
+      setRepoId(data.repo_id);
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : "Something went wrong");
       setLoading(false);
@@ -34,6 +40,8 @@ export default function Home() {
 
   return (
     <main className="min-h-screen bg-gray-950 text-white flex flex-col items-center justify-center px-4">
+      {loading && <SageLoader />}
+
       <div className="text-center mb-12">
         <div className="inline-flex items-center gap-2 bg-green-500/10 border border-green-500/20 rounded-full px-4 py-1.5 text-green-400 text-sm mb-6">
           <span className="w-2 h-2 bg-green-400 rounded-full animate-pulse" />
