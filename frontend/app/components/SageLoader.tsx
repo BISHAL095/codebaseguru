@@ -1,4 +1,3 @@
-import "./SageLoader.css";
 
 export default function SageLoader() {
   return (

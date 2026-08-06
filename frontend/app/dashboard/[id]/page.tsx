@@ -1,23 +1,53 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { use } from "react";
 import { createClient } from "@/lib/supabase/client";
+import SageLoader from "@/app/components/SageLoader";
 
-export default function DashboardPage({ params }: { params: { id: string } }) {
+interface Repository {
+  id: string;
+  owner: string;
+  name: string;
+  github_url: string;
+  file_count: number;
+  status: string;
+}
+
+export default function DashboardPage({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = use(params);
   const [status, setStatus] = useState<"processing" | "ready" | "error">("processing");
+  const [repo, setRepo] = useState<Repository | null>(null);
+  const [files, setFiles] = useState<string[]>([]);
+  const [question, setQuestion] = useState("");
+  const [answer, setAnswer] = useState("");
+  const [citations, setCitations] = useState<string[]>([]);
+  const [chatLoading, setChatLoading] = useState(false);
   const supabase = createClient();
 
   useEffect(() => {
+    if (!id) return;
     const interval = setInterval(async () => {
       const { data } = await supabase
         .from("repositories")
-        .select("status")
-        .eq("id", params.id)
+        .select("*")
+        .eq("id", id)
         .single();
 
       if (data?.status === "ready") {
+        setRepo(data);
         setStatus("ready");
         clearInterval(interval);
+
+        const { data: chunks } = await supabase
+          .from("file_chunks")
+          .select("file_path")
+          .eq("repo_id", id);
+
+        if (chunks) {
+          const unique = [...new Set(chunks.map((c: { file_path: string }) => c.file_path))];
+          setFiles((unique as string[]).sort());
+        }
       } else if (data?.status === "error") {
         setStatus("error");
         clearInterval(interval);
@@ -25,88 +55,158 @@ export default function DashboardPage({ params }: { params: { id: string } }) {
     }, 3000);
 
     return () => clearInterval(interval);
-  }, [params.id]);
+  }, [id]);
 
-  if (status === "processing") return (
-    <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", background: "#0f172a" }}>
-      <style>{`
-        .float-group { animation: levitate 3.5s ease-in-out infinite; }
-        @keyframes levitate { 0%,100%{transform:translateY(0px)} 50%{transform:translateY(-12px)} }
-        .ground-shadow { animation: shadowPulse 3.5s ease-in-out infinite; transform-origin: center; }
-        @keyframes shadowPulse { 0%,100%{transform:scale(1);opacity:0.8} 50%{transform:scale(0.65);opacity:0.3} }
-        .breathe-torso { animation: breathe 3.5s ease-in-out infinite; transform-origin: 100px 140px; }
-        @keyframes breathe { 0%,100%{transform:scale(1)} 50%{transform:scale(1.03,0.97)} }
-        .aura-1 { animation: auraPulse 3.5s ease-in-out infinite; transform-origin: 100px 100px; }
-        .aura-2 { animation: auraRotate 12s linear infinite; transform-origin: 100px 100px; }
-        @keyframes auraPulse { 0%,100%{transform:scale(0.95);opacity:0.3} 50%{transform:scale(1.1);opacity:0.7} }
-        @keyframes auraRotate { from{transform:rotate(0deg)} to{transform:rotate(360deg)} }
-        .head-glow { animation: headGlow 2.5s ease-in-out infinite alternate; }
-        @keyframes headGlow { 0%{opacity:0.2;transform:scale(0.9)} 100%{opacity:0.6;transform:scale(1.15)} }
-        .sparkle { animation: floatSparkle 2.5s ease-in-out infinite; }
-        .s1{animation-delay:0s} .s2{animation-delay:0.8s} .s3{animation-delay:1.6s}
-        @keyframes floatSparkle { 0%,100%{opacity:0;transform:translateY(0) scale(0.5)} 50%{opacity:1;transform:translateY(-8px) scale(1.2)} }
-        .loading-label { margin-top: 12px; color: #94a3b8; font-size: 15px; font-weight: 500; letter-spacing: 0.02em; }
-        .dot-1{animation:blink 1.4s infinite 0s} .dot-2{animation:blink 1.4s infinite 0.2s} .dot-3{animation:blink 1.4s infinite 0.4s}
-        @keyframes blink { 0%,80%,100%{opacity:0} 40%{opacity:1} }
-      `}</style>
+  async function handleAsk(e: React.FormEvent) {
+    e.preventDefault();
+    if (!question.trim()) return;
+    setChatLoading(true);
+    setAnswer("");
+    setCitations([]);
 
-      <div style={{ display:"flex", flexDirection:"column", alignItems:"center" }}>
-        <svg style={{ width:180, height:200, overflow:"visible" }} viewBox="0 0 200 220" fill="none">
-          <defs>
-            <radialGradient id="shadowGlow" cx="50%" cy="50%" r="50%">
-              <stop offset="0%" stopColor="#3b82f6" stopOpacity="0.3" />
-              <stop offset="100%" stopColor="#3b82f6" stopOpacity="0" />
-            </radialGradient>
-            <radialGradient id="auraGlow" cx="50%" cy="50%" r="50%">
-              <stop offset="0%" stopColor="#60a5fa" stopOpacity="0.25" />
-              <stop offset="70%" stopColor="#3b82f6" stopOpacity="0.08" />
-              <stop offset="100%" stopColor="#3b82f6" stopOpacity="0" />
-            </radialGradient>
-          </defs>
-          <ellipse className="ground-shadow" cx="100" cy="195" rx="45" ry="8" fill="url(#shadowGlow)" />
-          <circle className="aura-1" cx="100" cy="100" r="70" fill="url(#auraGlow)" />
-          <circle className="aura-2" cx="100" cy="100" r="85" fill="none" stroke="#60a5fa" strokeWidth="1.5" strokeDasharray="4 6" />
-          <g className="float-group">
-            <circle className="head-glow" cx="100" cy="65" r="38" fill="#60a5fa" opacity="0.15" />
-            <path d="M 60 148 C 65 135, 95 135, 100 148 C 105 135, 135 135, 140 148 C 145 160, 115 165, 100 162 C 85 165, 55 160, 60 148 Z" fill="#ffffff" stroke="#e2e8f0" strokeWidth="2.5" strokeLinejoin="round" />
-            <g className="breathe-torso">
-              <path d="M 82 98 C 82 90, 118 90, 118 98 L 114 142 C 108 148, 92 148, 86 142 Z" fill="#ffffff" stroke="#e2e8f0" strokeWidth="2.5" strokeLinejoin="round" />
-            </g>
-            <path d="M 84 100 C 68 102, 52 120, 52 130 C 52 135, 60 138, 68 130" fill="none" stroke="#ffffff" strokeWidth="14" strokeLinecap="round" strokeLinejoin="round" />
-            <path d="M 84 100 C 68 102, 52 120, 52 130 C 52 135, 60 138, 68 130" fill="none" stroke="#e2e8f0" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
-            <circle cx="48" cy="126" r="4" fill="none" stroke="#e2e8f0" strokeWidth="2" />
-            <path d="M 44 123 C 40 120, 36 125, 40 129" fill="none" stroke="#e2e8f0" strokeWidth="2" strokeLinecap="round" />
-            <path d="M 116 100 C 132 102, 148 120, 148 130 C 148 135, 140 138, 132 130" fill="none" stroke="#ffffff" strokeWidth="14" strokeLinecap="round" strokeLinejoin="round" />
-            <path d="M 116 100 C 132 102, 148 120, 148 130 C 148 135, 140 138, 132 130" fill="none" stroke="#e2e8f0" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
-            <circle cx="152" cy="126" r="4" fill="none" stroke="#e2e8f0" strokeWidth="2" />
-            <path d="M 156 123 C 160 120, 164 125, 160 129" fill="none" stroke="#e2e8f0" strokeWidth="2" strokeLinecap="round" />
-            <circle cx="100" cy="65" r="30" fill="#ffffff" stroke="#e2e8f0" strokeWidth="2.5" />
-            <path d="M 88 64 Q 93 70 98 64" fill="none" stroke="#475569" strokeWidth="2.5" strokeLinecap="round" />
-            <path d="M 102 64 Q 107 70 112 64" fill="none" stroke="#475569" strokeWidth="2.5" strokeLinecap="round" />
-            <path d="M 94 76 Q 100 81 106 76" fill="none" stroke="#475569" strokeWidth="2.5" strokeLinecap="round" />
-          </g>
-          <circle className="sparkle s1" cx="50" cy="60" r="2" fill="#60a5fa" />
-          <circle className="sparkle s2" cx="150" cy="70" r="3" fill="#93c5fd" />
-          <circle className="sparkle s3" cx="100" cy="20" r="2.5" fill="#3b82f6" />
-        </svg>
-        <div className="loading-label">
-          <span>Finding inner peace</span>
-          <span className="dot-1">.</span><span className="dot-2">.</span><span className="dot-3">.</span>
-        </div>
-      </div>
-    </div>
-  );
+    try {
+      const res = await fetch("http://localhost:8000/api/chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ repo_id: id, question }),
+      });
+      const data = await res.json();
+      setAnswer(data.answer);
+      setCitations(data.citations || []);
+    } catch {
+      setAnswer("Something went wrong. Please try again.");
+    } finally {
+      setChatLoading(false);
+    }
+  }
+
+  if (status === "processing") return <SageLoader />;
 
   if (status === "error") return (
-    <div style={{ minHeight:"100vh", display:"flex", alignItems:"center", justifyContent:"center", background:"#0f172a", color:"#f87171" }}>
+    <div className="min-h-screen bg-slate-950 flex items-center justify-center text-red-400">
       Something went wrong processing this repo.
     </div>
   );
 
   return (
-    <div style={{ minHeight:"100vh", background:"#0f172a", color:"white", padding:"2rem" }}>
-      <h1>Dashboard — repo ready ✅</h1>
-      <p>Repo ID: {params.id}</p>
+    <div className="min-h-screen bg-slate-950 text-white grid grid-cols-[280px_1fr]">
+
+      {/* Sidebar — file tree */}
+      <aside className="bg-slate-950 border-r border-slate-800 p-4 overflow-y-auto">
+        <div className="mb-4">
+          <div className="flex items-center gap-2 mb-1">
+            <span className="text-green-400 text-xs font-semibold uppercase tracking-wider">Files indexed</span>
+            <span className="text-xs bg-slate-800 text-slate-400 px-2 py-0.5 rounded-full">{files.length}</span>
+          </div>
+          <a
+            href={repo?.github_url}
+            target="_blank"
+            rel="noreferrer"
+            className="text-slate-500 text-xs hover:text-slate-300 transition-colors"
+          >
+            {repo?.owner}/{repo?.name} ↗
+          </a>
+        </div>
+
+        <ul className="space-y-0.5">
+          {files.map((file) => (
+            <li
+              key={file}
+              className="text-xs text-slate-500 hover:text-slate-300 hover:bg-slate-800 px-2 py-1 rounded font-mono truncate cursor-default transition-colors"
+              title={file}
+            >
+              {file}
+            </li>
+          ))}
+        </ul>
+      </aside>
+
+      {/* Main — chat area */}
+      <main className="flex flex-col p-6 gap-4 overflow-hidden">
+
+        {/* Header */}
+        <div className="flex items-center justify-between pb-4 border-b border-slate-800">
+          <div>
+            <h1 className="text-lg font-semibold text-white">{repo?.owner}/{repo?.name}</h1>
+            <p className="text-slate-500 text-sm">{repo?.file_count} files indexed · ready to answer questions</p>
+          </div>
+          <div className="flex items-center gap-2 bg-green-500/10 border border-green-500/20 rounded-full px-3 py-1">
+            <span className="w-1.5 h-1.5 bg-green-400 rounded-full animate-pulse" />
+            <span className="text-green-400 text-xs font-medium">Ready</span>
+          </div>
+        </div>
+
+        {/* Answer area */}
+        <div className="flex-1 bg-slate-900 rounded-xl p-5 overflow-y-auto min-h-[300px] flex flex-col">
+          {!answer && !chatLoading && (
+            <div className="m-auto text-center">
+              <p className="text-slate-500 text-sm mb-2">Ask anything about this codebase</p>
+              <div className="flex flex-wrap gap-2 justify-center">
+                {[
+                  "How does auth work?",
+                  "What does index.ts do?",
+                  "Explain the folder structure",
+                  "What APIs are exposed?",
+                ].map((q) => (
+                  <button
+                    key={q}
+                    onClick={() => setQuestion(q)}
+                    className="text-xs bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white px-3 py-1.5 rounded-full transition-colors"
+                  >
+                    {q}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {chatLoading && (
+            <div className="flex items-center gap-2 text-slate-400 text-sm">
+              <span className="w-2 h-2 bg-blue-400 rounded-full animate-pulse" />
+              Thinking...
+            </div>
+          )}
+
+          {answer && (
+            <div className="flex flex-col gap-4">
+              <div className="bg-slate-800 rounded-lg p-4 text-slate-300 text-sm leading-relaxed border-l-2 border-blue-500">
+                {answer}
+              </div>
+
+              {citations.length > 0 && (
+                <div>
+                  <p className="text-xs text-slate-500 mb-2 uppercase tracking-wider">Sources</p>
+                  <div className="flex flex-col gap-1">
+                    {citations.map((cite, i) => (
+                      <span key={i} className="text-xs text-slate-500 font-mono bg-slate-800 px-2 py-1 rounded">
+                        📎 {cite}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+
+        {/* Input */}
+        <form onSubmit={handleAsk} className="flex gap-3">
+          <input
+            value={question}
+            onChange={(e) => setQuestion(e.target.value)}
+            placeholder="Ask something about this codebase..."
+            className="flex-1 bg-slate-900 border border-slate-700 rounded-lg px-4 py-3 text-white text-sm placeholder-slate-500 focus:outline-none focus:border-blue-500 transition-colors"
+            disabled={chatLoading}
+          />
+          <button
+            type="submit"
+            disabled={chatLoading || !question.trim()}
+            className="bg-blue-600 hover:bg-blue-500 disabled:bg-slate-700 disabled:text-slate-500 text-white font-medium px-5 py-3 rounded-lg transition-colors text-sm"
+          >
+            {chatLoading ? "..." : "Ask →"}
+          </button>
+        </form>
+      </main>
     </div>
   );
 }

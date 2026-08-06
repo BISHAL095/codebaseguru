@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import SageLoader from "../components/SageLoader";
+import SageLoader from "./components/SageLoader";
 import { useRepoStatus } from "./hooks/useRepoStatus";
 
 export default function Home() {

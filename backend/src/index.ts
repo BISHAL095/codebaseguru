@@ -2,6 +2,8 @@ import express from "express";
 import cors from "cors";
 import dotenv from "dotenv";
 import explainRouter from "./routes/explain";
+import chatRouter from "./routes/chat";
+
 
 dotenv.config();
 
@@ -16,7 +18,7 @@ app.get("/health", (req, res) => {
 });
 
 app.use("/api/explain", explainRouter);
-
+app.use("/api/chat", chatRouter);
 app.listen(PORT, () => {
   console.log(`🚀 Backend running on http://localhost:${PORT}`);
 });
