@@ -1,27 +1,15 @@
-import { response } from "express";
+import { GoogleGenAI } from "@google/genai";
 
 export async function getEmbedding(text: string): Promise<number[]> {
-  const response = await fetch("http://localhost:11434/api/embeddings", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      model: "nomic-embed-text",
-      prompt: text.slice(0, 512),
-    }),
+  const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY! });
+
+  const result = await ai.models.embedContent({
+    model: "gemini-embedding-2",
+    contents: text.slice(0, 2000),
   });
 
-  
-
-  if (!response.ok) {
-    throw new Error(`Ollama error: ${response.statusText}`);
-  }
-
-  const data = await response.json() as { embedding: number[] };
-  console.log("Embedding length:", data.embedding?.length);
-  console.log("First value:", data.embedding?.[0]);
-  return data.embedding;
+  return result.embeddings?.[0]?.values ?? [];
 }
-
 
 export function chunkFile(filePath: string, content: string) {
   const lines = content.split("\n");

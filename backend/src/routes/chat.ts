@@ -10,7 +10,7 @@ function getGroq() {
 }
 
 router.post("/", async (req: Request, res: Response) => {
-  const { repo_id, question } = req.body;
+  const { repo_id, question, responseStyle } = req.body;
 
   if (!repo_id || !question) {
     res.status(400).json({ error: "repo_id and question are required" });
@@ -37,6 +37,10 @@ router.post("/", async (req: Request, res: Response) => {
       .join("\n\n---\n\n");
 
     const citations = [...new Set(chunks.map((c: { file_path: string }) => c.file_path))];
+    const styleInstruction = responseStyle === "bullets"
+  ? "Format your response using bullet points or numbered lists. Be concise. Each point should be one clear sentence."
+  : "Format your response as clear descriptive paragraphs. Be thorough but easy to understand.";
+
 
     // 4. Ask Groq
     const groq = getGroq();
@@ -44,13 +48,14 @@ router.post("/", async (req: Request, res: Response) => {
       model: "llama-3.3-70b-versatile",
       max_tokens: 1024,
       messages: [
-        {
-          role: "system",
-          content: `You are CodebaseGuru — an expert at explaining codebases in plain English.
+  {
+    role: "system",
+    content: `You are CodebaseGuru — an expert at explaining codebases in plain English.
 You are given relevant code chunks from a repository.
-Answer the user's question clearly and concisely based only on the provided code.
+Answer the user's question based only on the provided code.
 If the answer isn't in the provided code, say so honestly.
-Do not make things up.`,
+Do not make things up.
+${styleInstruction}`,
         },
         {
           role: "user",

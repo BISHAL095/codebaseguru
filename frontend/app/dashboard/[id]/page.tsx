@@ -23,6 +23,7 @@ export default function DashboardPage({ params }: { params: Promise<{ id: string
   const [answer, setAnswer] = useState("");
   const [citations, setCitations] = useState<string[]>([]);
   const [chatLoading, setChatLoading] = useState(false);
+  const [responseStyle, setResponseStyle] = useState<"descriptive" | "bullets">("descriptive");
   const supabase = createClient();
 
   useEffect(() => {
@@ -68,7 +69,7 @@ export default function DashboardPage({ params }: { params: Promise<{ id: string
       const res = await fetch("http://localhost:8000/api/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ repo_id: id, question }),
+        body: JSON.stringify({ repo_id: id, question, responseStyle }),
       });
       const data = await res.json();
       setAnswer(data.answer);
@@ -133,6 +134,28 @@ export default function DashboardPage({ params }: { params: Promise<{ id: string
           <div className="flex items-center gap-2 bg-green-500/10 border border-green-500/20 rounded-full px-3 py-1">
             <span className="w-1.5 h-1.5 bg-green-400 rounded-full animate-pulse" />
             <span className="text-green-400 text-xs font-medium">Ready</span>
+          </div>
+          <div className="flex items-center gap-1 bg-slate-800 rounded-full p-1">
+            <button
+              onClick={() => setResponseStyle("descriptive")}
+              className={`text-xs px-3 py-1 rounded-full transition-colors ${
+                responseStyle === "descriptive"
+                  ? "bg-blue-600 text-white"
+                  : "text-slate-400 hover:text-white"
+              }`}
+            >
+              Descriptive
+            </button>
+            <button
+              onClick={() => setResponseStyle("bullets")}
+              className={`text-xs px-3 py-1 rounded-full transition-colors ${
+                responseStyle === "bullets"
+                  ? "bg-blue-600 text-white"
+                  : "text-slate-400 hover:text-white"
+              }`}
+            >
+              Bullets
+            </button>
           </div>
         </div>
 

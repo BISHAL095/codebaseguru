@@ -57,13 +57,14 @@ router.post("/", async (req: Request, res: Response) => {
       const chunks = chunkFile(file.path, file.content);
 
       for (const chunk of chunks) {
+        if (!chunk.content || chunk.content.trim().length === 0) continue;
         try {
           const embedding = await getEmbedding(chunk.content);
+          if (embedding.length === 0) continue;
           allChunks.push(chunk);
           allEmbeddings.push(embedding);
         } catch (err) {
           console.error(`Failed to embed chunk from ${file.path}:`, err);
-          // skip failed chunks, don't crash the whole process
         }
       }
     }
