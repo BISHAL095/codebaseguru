@@ -2,12 +2,10 @@ import { GoogleGenAI } from "@google/genai";
 
 export async function getEmbedding(text: string): Promise<number[]> {
   const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY! });
-
   const result = await ai.models.embedContent({
     model: "gemini-embedding-2",
     contents: text.slice(0, 2000),
   });
-
   return result.embeddings?.[0]?.values ?? [];
 }
 

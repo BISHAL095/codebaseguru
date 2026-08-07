@@ -23,15 +23,20 @@ export default function Home() {
     if (!url.trim()) return;
     setLoading(true);
     setError("");
+
     try {
-      const res = await fetch("http://localhost:8000/api/explain", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ github_url: url.trim() }),
-      });
+      const [res] = await Promise.all([
+        fetch("http://localhost:8000/api/explain", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ github_url: url.trim() }),
+        }),
+        new Promise((resolve) => setTimeout(resolve, 15000)), // minimum 15 sec
+      ]);
+
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Something went wrong");
-      setRepoId(data.repo_id);
+      router.push(`/dashboard/${data.repo_id}?summary=${encodeURIComponent(data.summary)}`);
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : "Something went wrong");
       setLoading(false);

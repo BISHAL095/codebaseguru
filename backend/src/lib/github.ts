@@ -7,6 +7,7 @@ const IGNORE_EXTENSIONS = [
   ".png", ".jpg", ".jpeg", ".gif", ".svg", ".ico", ".webp",
   ".pdf", ".zip", ".tar", ".gz", ".mp4", ".mp3",
   ".lock", ".sum", ".mod", ".min.js", ".min.css",
+  ".lock", ".sum", ".mod", "package-lock.json", "yarn.lock", "pnpm-lock.yaml",
 ];
 
 const CODE_EXTENSIONS = [
@@ -54,6 +55,34 @@ export interface RepoFile {
   content: string;
   language: string;
   size: number;
+}
+
+export async function fetchReadme(owner: string, repo: string): Promise<string | null> {
+  const headers: Record<string, string> = {
+    Accept: "application/vnd.github.v3+json",
+  };
+
+  if (process.env.GITHUB_TOKEN) {
+    headers["Authorization"] = `Bearer ${process.env.GITHUB_TOKEN}`;
+  }
+
+  const readmeFiles = ["README.md", "readme.md", "README.MD", "README.txt", "README"];
+
+  for (const filename of readmeFiles) {
+    try {
+      const res = await fetch(
+        `https://api.github.com/repos/${owner}/${repo}/contents/${filename}`,
+        { headers }
+      );
+      if (!res.ok) continue;
+      const data = await res.json() as { content: string };
+      return Buffer.from(data.content, "base64").toString("utf-8");
+    } catch {
+      continue;
+    }
+  }
+
+  return null;
 }
 
 export async function fetchRepoFiles(
@@ -118,4 +147,27 @@ export async function fetchRepoFiles(
   }
 
   return results;
+}
+
+export async function fetchFileContent(
+  owner: string,
+  repo: string,
+  path: string
+): Promise<string | null> {
+  const headers: Record<string, string> = {
+    Accept: "application/vnd.github.v3+json",
+  };
+
+  if (process.env.GITHUB_TOKEN) {
+    headers["Authorization"] = `Bearer ${process.env.GITHUB_TOKEN}`;
+  }
+
+  const res = await fetch(
+    `https://api.github.com/repos/${owner}/${repo}/contents/${path}`,
+    { headers }
+  );
+
+  if (!res.ok) return null;
+  const data = await res.json() as { content: string };
+  return Buffer.from(data.content, "base64").toString("utf-8");
 }

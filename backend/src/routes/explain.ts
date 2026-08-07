@@ -1,8 +1,7 @@
 import { Router, Request, Response } from "express";
-import { parseGithubUrl, fetchRepoFiles } from "../lib/github";
-import { chunkFile, getEmbedding } from "../lib/embeddings";
-import { saveChunks } from "../lib/vectorstore";
+import { parseGithubUrl, fetchRepoFiles, fetchReadme } from "../lib/github";
 import { createClient } from "@supabase/supabase-js";
+import Groq from "groq-sdk";
 
 const router = Router();
 
@@ -11,6 +10,10 @@ function getSupabase() {
     process.env.SUPABASE_URL!,
     process.env.SUPABASE_SERVICE_ROLE_KEY!
   );
+}
+
+function getGroq() {
+  return new Groq({ apiKey: process.env.GROQ_API_KEY! });
 }
 
 router.post("/", async (req: Request, res: Response) => {
@@ -23,72 +26,81 @@ router.post("/", async (req: Request, res: Response) => {
   }
 
   try {
-    // 1. Parse the GitHub URL
+    // 1. Parse URL
     const { owner, repo } = parseGithubUrl(github_url);
 
-    // 2. Create a repo record in Supabase
+    // 2. Fetch file tree only (no content yet)
+    console.log(`Fetching file tree for ${owner}/${repo}...`);
+    const files = await fetchRepoFiles(owner, repo);
+    const filePaths = files.map((f) => f.path);
+    console.log(`Found ${filePaths.length} files`);
+
+    // 3. Fetch README
+    console.log(`Fetching README...`);
+    const readme = await fetchReadme(owner, repo);
+
+    // 4. Generate summary from README using Groq
+    console.log(`Generating summary...`);
+    let summary = "No README found for this repository.";
+
+    if (readme) {
+      const groq = getGroq();
+      const response = await groq.chat.completions.create({
+        model: "llama-3.3-70b-versatile",
+        max_tokens: 300,
+        messages: [
+          {
+            role: "system",
+            content: "You are a technical assistant. Summarize the following README in 3-4 sentences in plain English. Focus on what the project does, what problem it solves, and what tech it uses. Be concise.",
+          },
+          {
+            role: "user",
+            content: readme.slice(0, 3000),
+          },
+        ],
+      });
+      summary = response.choices[0]?.message?.content || summary;
+    }
+
+    // 5. Save repo record
     const { data: repoRecord, error: repoError } = await supabase
       .from("repositories")
       .insert({
         github_url,
         owner,
         name: repo,
-        status: "processing",
-        file_count: 0,
-        user_id: null, // will add auth later
+        status: "ready",
+        file_count: filePaths.length,
+        user_id: null,
       })
       .select()
       .single();
 
     if (repoError) throw new Error(repoError.message);
 
-    const repoId = repoRecord.id;
+    // 6. Save file paths (no embeddings yet)
+    const fileRows = filePaths.map((path) => ({
+      repo_id: repoRecord.id,
+      file_path: path,
+      content: "",
+      chunk_index: 0,
+      embedding: null,
+    }));
 
-    // 3. Fetch all code files from GitHub
-    console.log(`Fetching files for ${owner}/${repo}...`);
-    const files = await fetchRepoFiles(owner, repo);
-    console.log(`Found ${files.length} files`);
-
-    // 4. Chunk + embed each file
-    const allChunks: { file_path: string; content: string; chunk_index: number }[] = [];
-    const allEmbeddings: number[][] = [];
-
-    for (const file of files) {
-      const chunks = chunkFile(file.path, file.content);
-
-      for (const chunk of chunks) {
-        if (!chunk.content || chunk.content.trim().length === 0) continue;
-        try {
-          const embedding = await getEmbedding(chunk.content);
-          if (embedding.length === 0) continue;
-          allChunks.push(chunk);
-          allEmbeddings.push(embedding);
-        } catch (err) {
-          console.error(`Failed to embed chunk from ${file.path}:`, err);
-        }
-      }
+    // Insert in batches
+    for (let i = 0; i < fileRows.length; i += 50) {
+      await supabase
+        .from("file_chunks")
+        .insert(fileRows.slice(i, i + 50));
     }
 
-    console.log(`Generated ${allChunks.length} chunks`);
+    console.log(`✅ Done — repo ready in seconds`);
 
-    // 5. Save all chunks + embeddings to Supabase in batches
-    const BATCH_SIZE = 50;
-    for (let i = 0; i < allChunks.length; i += BATCH_SIZE) {
-      await saveChunks(
-        repoId,
-        allChunks.slice(i, i + BATCH_SIZE),
-        allEmbeddings.slice(i, i + BATCH_SIZE)
-      );
-    }
-    console.log(`✅ Successfully inserted chunks into Supabase`);
-    
-    // 6. Update repo status to ready
-    await supabase
-      .from("repositories")
-      .update({ status: "ready", file_count: files.length })
-      .eq("id", repoId);
-
-    res.json({ repo_id: repoId, file_count: files.length });
+    res.json({
+      repo_id: repoRecord.id,
+      file_count: filePaths.length,
+      summary,
+    });
 
   } catch (err: unknown) {
     console.error("Explain route error:", err);
