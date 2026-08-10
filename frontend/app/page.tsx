@@ -31,7 +31,7 @@ export default function Home() {
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ github_url: url.trim() }),
         }),
-        new Promise((resolve) => setTimeout(resolve, 15000)), // minimum 15 sec
+        new Promise((resolve) => setTimeout(resolve, 6000)), // minimum 6 sec
       ]);
 
       const data = await res.json();
