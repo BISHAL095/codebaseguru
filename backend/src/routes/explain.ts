@@ -1,6 +1,7 @@
 import { Router, Request, Response } from "express";
 import { parseGithubUrl, fetchRepoFiles, fetchReadme } from "../lib/github";
 import { createClient } from "@supabase/supabase-js";
+import { getIP, incrementRepoCount } from "../middleware/rateLimit";
 import Groq from "groq-sdk";
 
 const router = Router();
@@ -95,6 +96,9 @@ router.post("/", async (req: Request, res: Response) => {
     }
 
     console.log(`✅ Done — repo ready in seconds`);
+
+    // Only count towards limit on success
+    incrementRepoCount(getIP(req));
 
     res.json({
       repo_id: repoRecord.id,

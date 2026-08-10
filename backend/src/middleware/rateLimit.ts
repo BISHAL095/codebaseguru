@@ -37,10 +37,31 @@ function getEntry(ip: string): RateLimitEntry {
   return entry;
 }
 
+export function getIP(req: any): string {
+  return req.ip || req.headers["x-forwarded-for"] || "unknown";
+}
+
+// Call this only after successful repo processing
+export function incrementRepoCount(ip: string) {
+  checkGlobalLimits();
+  const entry = getEntry(ip);
+  entry.repoCount++;
+  entry.lastRepoTime = Date.now();
+  globalRepoCount++;
+}
+
+// Call this only after successful chat
+export function incrementChatCount(ip: string) {
+  checkGlobalLimits();
+  const entry = getEntry(ip);
+  entry.chatCount++;
+  globalChatCount++;
+}
+
 export function repoRateLimit(req: any, res: any, next: any) {
   checkGlobalLimits();
-  const ip = req.ip || req.headers["x-forwarded-for"] || "unknown";
-  const entry = getEntry(ip as string);
+  const ip = getIP(req);
+  const entry = getEntry(ip);
   const now = Date.now();
 
   if (globalRepoCount >= GLOBAL_DAILY_REPO_LIMIT) {
@@ -59,16 +80,13 @@ export function repoRateLimit(req: any, res: any, next: any) {
     return;
   }
 
-  globalRepoCount++;
-  entry.repoCount++;
-  entry.lastRepoTime = now;
   next();
 }
 
 export function chatRateLimit(req: any, res: any, next: any) {
   checkGlobalLimits();
-  const ip = req.ip || req.headers["x-forwarded-for"] || "unknown";
-  const entry = getEntry(ip as string);
+  const ip = getIP(req);
+  const entry = getEntry(ip);
 
   if (globalChatCount >= GLOBAL_DAILY_CHAT_LIMIT) {
     res.status(429).json({ error: "Service daily limit reached. Please try again tomorrow." });
@@ -80,7 +98,5 @@ export function chatRateLimit(req: any, res: any, next: any) {
     return;
   }
 
-  globalChatCount++;
-  entry.chatCount++;
   next();
 }

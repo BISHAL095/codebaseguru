@@ -3,6 +3,7 @@ import Groq from "groq-sdk";
 import { createClient } from "@supabase/supabase-js";
 import { getEmbedding, chunkFile } from "../lib/embeddings";
 import { fetchFileContent } from "../lib/github";
+import { getIP, incrementChatCount } from "../middleware/rateLimit";
 
 const router = Router();
 
@@ -172,6 +173,10 @@ ${styleInstruction}`,
     });
 
     const answer = response.choices[0]?.message?.content || "No answer generated.";
+
+    // Only count towards limit on success
+    incrementChatCount(getIP(req));
+
     res.json({ answer, citations });
 
   } catch (err: unknown) {
