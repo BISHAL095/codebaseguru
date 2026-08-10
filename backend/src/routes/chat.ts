@@ -17,7 +17,7 @@ function getGroq() {
   return new Groq({ apiKey: process.env.GROQ_API_KEY! });
 }
 
-// Find relevant files by matching keywords from question to file paths
+// Score file paths and return the most relevant repo files for a question.
 function findRelevantFiles(question: string, filePaths: string[]): string[] {
   const keywords = question
     .toLowerCase()
@@ -62,7 +62,7 @@ router.post("/", async (req: Request, res: Response) => {
   }
 
   try {
-    // 1. Get repo info
+    // Retrieve repository metadata needed for GitHub lookup.
     const { data: repo } = await supabase
       .from("repositories")
       .select("owner, name")

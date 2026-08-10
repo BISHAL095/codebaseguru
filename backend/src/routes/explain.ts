@@ -26,20 +26,20 @@ router.post("/", async (req: Request, res: Response) => {
   }
 
   try {
-    // 1. Parse URL
+    // Parse the GitHub repository URL from the incoming request.
     const { owner, repo } = parseGithubUrl(github_url);
 
-    // 2. Fetch file tree only (no content yet)
+    // Fetch the repository file tree so we can record available file paths.
     console.log(`Fetching file tree for ${owner}/${repo}...`);
     const files = await fetchRepoFiles(owner, repo);
     const filePaths = files.map((f) => f.path);
     console.log(`Found ${filePaths.length} files`);
 
-    // 3. Fetch README
+    // Attempt to retrieve the repository README for a short summary.
     console.log(`Fetching README...`);
     const readme = await fetchReadme(owner, repo);
 
-    // 4. Generate summary from README using Groq
+    // Generate a concise summary from the README using Groq.
     console.log(`Generating summary...`);
     let summary = "No README found for this repository.";
 
@@ -62,7 +62,7 @@ router.post("/", async (req: Request, res: Response) => {
       summary = response.choices[0]?.message?.content || summary;
     }
 
-    // 5. Save repo record
+    // Persist the repository record before saving file metadata.
     const { data: repoRecord, error: repoError } = await supabase
       .from("repositories")
       .insert({
