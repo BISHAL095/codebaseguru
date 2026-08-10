@@ -11,6 +11,7 @@ export default function Home() {
   const [repoId, setRepoId] = useState<string | null>(null);
   const [error, setError] = useState("");
   const router = useRouter();
+  const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL ?? "http://localhost:8000";
 
   useRepoStatus(
     repoId,
@@ -26,7 +27,7 @@ export default function Home() {
 
     try {
       const [res] = await Promise.all([
-        fetch("http://localhost:8000/api/explain", {
+        fetch(`${BACKEND_URL}/api/explain`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ github_url: url.trim() }),

@@ -65,7 +65,8 @@ export default function DashboardPage({ params }: { params: Promise<{ id: string
     setCitations([]);
 
     try {
-      const res = await fetch("http://localhost:8000/api/chat", {
+      const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL ?? "http://localhost:8000";
+      const res = await fetch(`${BACKEND_URL}/api/chat`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ repo_id: id, question, responseStyle }),
